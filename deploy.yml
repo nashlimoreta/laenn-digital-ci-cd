@@ -1,0 +1,66 @@
+name: LAENN Digital - CI/CD
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Validar sitio web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Comprobar archivos del proyecto
+        run: |
+          test -f index.html
+          test -f css/styles.css
+          test -f js/script.js
+          echo "Estructura del sitio web correcta."
+
+      - name: Validar referencias principales
+        run: |
+          grep -q 'css/styles.css' index.html
+          grep -q 'js/script.js' index.html
+          echo "Referencias CSS y JavaScript encontradas."
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Preparar archivos para publicación
+        run: |
+          mkdir _site
+          cp index.html _site/
+          cp -r css js _site/
+
+      - name: Subir artefacto de GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Publicar sitio web
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
